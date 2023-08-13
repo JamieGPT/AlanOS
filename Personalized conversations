@@ -1,0 +1,56 @@
+import openai
+from textblob import TextBlob
+
+class MindfulMateWithGPT3:
+    def __init__(self, openai_api_key):
+        self.user_profile = {}
+        self.memory = defaultdict(list)
+        self.openai_api_key = openai_api_key
+
+    def generate_response_with_gpt3(self, user_input):
+        prompt = f"User: {user_input}\nMindfulMate:"
+        response = openai.Completion.create(
+            engine="davinci",  # Use the GPT-3 "davinci" engine
+            prompt=prompt,
+            max_tokens=50,  # Control the length of the response
+            api_key=self.openai_api_key
+        )
+        return response.choices[0].text.strip()
+
+    def process_user_input(self, user_input):
+        response = ""
+
+        if "name" not in self.user_profile:
+            response += self.gather_user_name(user_input)
+        else:
+            response += self.generate_response_with_gpt3(user_input)
+        
+        sentiment = self.analyze_sentiment(user_input)
+        if sentiment > 0.5:
+            response += " I'm glad to hear that you're feeling positive!"
+        elif sentiment < -0.5:
+            response += " I'm sorry to hear that you're feeling down. I'm here to listen."
+
+        return response
+
+    def gather_user_name(self, user_input):
+        self.user_profile["name"] = user_input
+        return f"Nice to meet you, {user_input}! How can I help you today?"
+
+    # ... Rest of the class methods
+
+    def analyze_sentiment(self, text):
+        blob = TextBlob(text)
+        return blob.sentiment.polarity
+
+# Example usage with GPT-3 and sentiment analysis
+openai_api_key = "YOUR_OPENAI_API_KEY"
+mindful_mate_gpt3 = MindfulMateWithGPT3(openai_api_key)
+
+while True:
+    user_input = input("You: ")
+    if user_input.lower() == "exit":
+        print("Goodbye!")
+        break
+    response = mindful_mate_gpt3.process_user_input(user_input)
+    print("MindfulMate:", response)
