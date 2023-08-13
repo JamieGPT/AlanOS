@@ -1,1 +1,90 @@
+import openai
+from textblob import TextBlob
+from collections import defaultdict
 
+class MindfulMateWithPreferencesAndContext:
+    def __init__(self, openai_api_key):
+        self.user_profile = {}
+        self.memory = defaultdict(list)
+        self.openai_api_key = openai_api_key
+        self.conversation_history = []
+        self.preferences = defaultdict(list)
+        self.user_communication_style = defaultdict(int)
+
+    def generate_response_with_gpt3(self, user_input):
+        prompt = "\n".join(self.conversation_history + [f"User: {user_input}", "MindfulMate:"])
+        response = openai.Completion.create(
+            engine="davinci",  # Use the GPT-3 "davinci" engine
+            prompt=prompt,
+            max_tokens=50,  # Control the length of the response
+            api_key=self.openai_api_key
+        )
+        return response.choices[0].text.strip()
+
+    def process_user_input(self, user_input):
+        if user_input.lower() == "exit":
+            return "Goodbye!"
+
+        sentiment = self.analyze_sentiment(user_input)
+        sentiment_response = self.handle_sentiment(sentiment)
+
+        response = ""
+        if "name" not in self.user_profile:
+            response += self.gather_user_name(user_input)
+        else:
+            self.conversation_history.append(f"User: {user_input}")
+            response += self.generate_response_with_gpt3(user_input)
+            self.conversation_history.append(f"MindfulMate: {response}")
+
+        self.update_communication_style(user_input)
+
+        preference_response = self.handle_preferences(user_input)
+        
+        return sentiment_response + " " + response + " " + preference_response
+
+    def gather_user_name(self, user_input):
+        self.user_profile["name"] = user_input
+        return f"Nice to meet you, {user_input}! How can I help you today?"
+
+    def handle_preferences(self, user_input):
+        if "I like" in user_input:
+            preference = user_input.split("I like", 1)[1].strip()
+            self.preferences[self.user_profile["name"]].append(preference)
+            return f"I've noted that you like {preference}."
+        elif "recommend" in user_input:
+            return self.generate_preference_recommendation()
+
+        return ""
+
+    def generate_preference_recommendation(self):
+        if self.user_profile["name"] in self.preferences:
+            preferences = self.preferences[self.user_profile["name"]]
+            if preferences:
+                return f"Based on your preferences, how about trying {preferences[0]}?"
+        
+        return "I'm sorry, I don't have enough information to make a recommendation."
+
+    def handle_sentiment(self, sentiment):
+        if sentiment > 0.5:
+            return "I'm glad to hear that you're feeling positive."
+        elif sentiment < -0.5:
+            return "I'm sorry to hear that you're feeling down. I'm here to listen."
+
+    def update_communication_style(self, user_input):
+        for word in user_input.split():
+            self.user_communication_style[word] += 1
+
+    def analyze_sentiment(self, text):
+        blob = TextBlob(text)
+        return blob.sentiment.polarity
+
+# Example usage with GPT-3, sentiment analysis, contextual understanding, and preferences
+openai_api_key = "YOUR_OPENAI_API_KEY"
+mindful_mate_full = MindfulMateWithPreferencesAndContext(openai_api_key)
+
+while True:
+    user_input = input("You: ")
+    response = mindful_mate_full.process_user_input(user_input)
+    print("MindfulMate:", response)
+    if user_input.lower() == "exit":
+        break
