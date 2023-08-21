@@ -1,0 +1,96 @@
+import tweepy
+from datetime import datetime
+from dateutil import parser
+import sqlite3
+
+class MindfulMateCombined:
+    def __init__(self, openai_api_key, twitter_api_key, twitter_api_secret, twitter_access_token, twitter_access_secret):
+        # Initialize attributes
+        self.twitter_auth = tweepy.OAuthHandler(twitter_api_key, twitter_api_secret)
+        self.twitter_auth.set_access_token(twitter_access_token, twitter_access_secret)
+        self.twitter_api = tweepy.API(self.twitter_auth)
+        # Initialize SQLite database for memory storage
+        self.conn = sqlite3.connect('mindfulmate_memory.db')
+        self.cursor = self.conn.cursor()
+        self.create_memory_table()
+
+    def create_memory_table(self):
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS memories
+                           (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            type TEXT,
+                            content TEXT,
+                            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+        self.conn.commit()
+
+    def store_memory(self, memory_type, content):
+        self.cursor.execute('''INSERT INTO memories (type, content) VALUES (?, ?)''', (memory_type, content))
+        self.conn.commit()
+
+    def learn_from_twitter(self):
+        tweets = self.retrieve_tweets()
+        self.process_tweets(tweets)
+
+    def retrieve_tweets(self):
+        # ... Retrieve tweets using Tweepy ...
+
+    def process_tweets(self, tweets):
+        for tweet in tweets:
+            text = tweet.text
+            created_at = tweet.created_at
+            self.store_memory('tweet', text)  # Store tweet in the database
+
+    def process_user_input(self, user_input):
+        if user_input.lower() == "exit":
+            self.conn.close()
+            return "Goodbye!"
+
+        sentiment = self.analyze_sentiment(user_input)
+        sentiment_response = self.handle_sentiment(sentiment)
+
+        emotion = self.analyze_emotion(user_input)
+        emotion_response = self.handle_emotion(emotion)
+
+        response = ""
+        if "name" not in self.user_profile:
+            response += self.gather_user_name(user_input)
+        else:
+            self.conversation_history.append(f"User: {user_input}")
+            response += self.generate_response_with_gpt3(user_input)
+            self.conversation_history.append(f"MindfulMate: {response}")
+
+        self.update_communication_style(user_input)
+        self.update_emotion_history(user_input, emotion)
+
+        # ... Handle preferences, feedback, and personalized conversations ...
+
+        return sentiment_response + " " + response + " " + emotion_response + " " + preference_response + " " + feedback_response
+
+    # ... Rest of the class methods ...
+
+# Example usage with combined features and Twitter integration
+def main():
+    openai_api_key = "YOUR_OPENAI_API_KEY"
+    twitter_api_key = "YOUR_TWITTER_API_KEY"
+    twitter_api_secret = "YOUR_TWITTER_API_SECRET"
+    twitter_access_token = "YOUR_TWITTER_ACCESS_TOKEN"
+    twitter_access_secret = "YOUR_TWITTER_ACCESS_SECRET"
+
+    mindful_mate_combined = MindfulMateCombined(openai_api_key, twitter_api_key, twitter_api_secret, twitter_access_token, twitter_access_secret)
+
+    while True:
+        user_input = input("You: ")
+
+        if "learn from twitter" in user_input:
+            mindful_mate_combined.learn_from_twitter()
+            print("Learning from Twitter data.")
+
+        else:
+            response_combined = mindful_mate_combined.process_user_input(user_input)
+            print("MindfulMate (Combined):", response_combined)
+
+        if user_input.lower() == "exit":
+            mindful_mate_combined.conn.close()
+            break
+
+if __name__ == "__main__":
+    main()
